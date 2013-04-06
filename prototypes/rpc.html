@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Prototype RPC through SQS</title>
+    <meta charset="utf-8">
+    
+    <link href="../vendor/bootstrap/css/bootstrap.css" rel="stylesheet">
+    
+    <script src="../vendor/jquery/jquery.js"></script>
+    <script src="../vendor/lodash/lodash.js"></script>
+    <script src="../vendor/moment/moment.js"></script>
+    <script src="../vendor/flXHR/flXHR.js"></script>
+    <script src="../vendor/hmacsha1/hmacsha1.js"></script>
+    <script src="../vendor/flXHR/jquery.flXHRproxy.js"></script>
+    
+    <script src="../src/MT.js"></script>
+    <script src="../src/core/RPC.js"></script>    
+    
+  </head>
+  <body style="background: url(background.png); ">
+    
+    <div class="container">
+        <h1>RPC through SQS</h1>
+        <input type="text" name="AccessKeyId" placeholder="AccessKeyId"><br>
+        <input type="text" name="SecureKeyId" placeholder="SecureKeyId"><br>
+        <input type="text" name="Queue" placeholder="Queue URI" style="width: 50%;">
+        <h4>Queue settings</h4>
+        <p>
+            <b>Default Visibility Timeout:</b>	5 minutes<br>
+            <b>Retention Period:</b>	3 minutes<br>
+            <b>Receive Message Wait Time:</b>	20 seconds<br>
+            <b>Messages Delayed:</b>	0    
+        </p>
+        <button class="btn btn-primary js-send">Send Message</button> <button class="btn js-clear">Clear</button>
+        <table class="table" style="display: none;">
+          <thead>
+            <tr>
+              <th>Latency</th>
+              <th>Message ID</th>
+              <th>Response ID</th>
+            </tr>
+          </thead>
+        </table>        
+    </div>
+    <script>
+    
+        var param,
+            search = window.location.search.replace(/^\?/,'').split('&');
+        for(var i=0; i<search.length;i++){
+            param = search[i].split('=');
+            $('[name='+param[0]+']').val(param[1]);
+        }
+    
+        MT.init({     
+            'session': {
+                'SId': '1bc29b36f623ba82aaf6724fd3b16718'
+            }
+        }, function(){
+        
+            var RPC = MT.get('RPC');
+            
+            $('.js-clear').click(function(){
+                $('.table').find('tbody').remove();
+            });
+            
+            $('.js-send').click(function(){
+            
+                var startTime = new Date().getTime(),
+                    queue = $('[name=Queue]').val();
+               
+                MT.env('session', {
+                    'ResponseQueue': queue,
+                    'RemoteServices': {
+                        'test': queue
+                    }            
+                });  
+                MT.env('demo', {
+                    'AccessKeyId': $('[name=AccessKeyId]').val(), 
+                    'SecureKeyId': $('[name=SecureKeyId]').val()
+                });                             
+                
+                RPC.call('test.method', {test: 'test'}, function(e, response, meta){
+                    var endTime = new Date().getTime();
+                    $('.table').fadeIn(200).append('<tr>' +
+                        '<td>' + (endTime - startTime) + '</td>' +
+                        '<td>' + response.Req.id + '</td>' +
+                        '<td>' + meta.responseId + '</td>' +
+                    '</tr>');
+                })
+                    .on('fail', function(){
+                        console.log('Error Timeout', this);
+                    });
+            });         
+        });
+       
+    </script>
+  </body>
+</html>
